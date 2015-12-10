@@ -70,6 +70,13 @@ def write_class_props(out, props, num_spaces):
         out.write('{0}public {1} {2};{3}'.format(indent, v, k, linesep))
 
 
+def write_parse_method(out, cls, num_spaces):
+    indent = ' ' * num_spaces
+    out.write('{0}public static {1} parse(String json) {{{2}'.format(indent, cls, linesep))
+    out.write('{0}return ({1})System.JSON.deserialize(json, {2}.class);{3}'.format(indent * 2, cls, cls, linesep))
+    out.write('{0}}}{1}'.format(indent, linesep))
+
+
 def main():
     description = """
     This script will generate an Apex class from a JSON input file.
@@ -103,6 +110,7 @@ def main():
             sorted_props = sorted(class_props[cls].items(), key=itemgetter(0))
             write_class_props(out, sorted_props, args.indent_spaces * 2)
             write_class_close(out, args.indent_spaces)
+        write_parse_method(out, args.class_name, args.indent_spaces)
         write_class_close(out, 0)
 
 if __name__ == '__main__':
