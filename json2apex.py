@@ -1,5 +1,5 @@
 from argparse import ArgumentParser, FileType
-from json import load
+from json import load, dumps
 from operator import itemgetter
 from os import access, linesep, makedirs, path as os_path, W_OK
 
@@ -31,7 +31,7 @@ def apex_type(k, v):
     elif isinstance(v, float):
         return 'Double'
     elif isinstance(v, list):
-        return 'List<{0]>'.format(apex_type(k, v[0]))
+        return 'List<{0}>'.format(apex_type(k, v[0]))
     elif isinstance(v, dict):
         return class_name(k)
 
@@ -48,7 +48,10 @@ def process(obj, parent):
             class_props[parent][k] = 'Double'
         elif isinstance(v, list):
             # Assumes list of the type of the first element
-            class_props[parent][k] = 'List<{0}>'.format(apex_type(k, v[0]))
+            list_type = apex_type(k, v[0])
+            class_props[parent][k] = 'List<{0}>'.format(list_type)
+            if list_type == class_name(k):
+                process(v[0], class_name(k))
         elif isinstance(v, dict):
             class_props[parent][k] = class_name(k)
             process(v, class_name(k))
@@ -77,6 +80,21 @@ def write_parse_method(out, cls, num_spaces):
     out.write('{0}}}{1}'.format(indent, linesep))
 
 
+def write_test_class(out, cls, json_dict, num_spaces):
+    indent = ' ' * num_spaces
+    json_str = dumps(json_dict, indent=' ' * num_spaces)
+    json_str = (' + ' + linesep).join(["{0}'{1}'".format(indent * 2, line) for line in json_str.split(linesep)])
+    out.write('@isTest{0}'.format(linesep))
+    out.write('public class Test{0} {{{1}'.format(cls, linesep))
+    out.write('{0}@isTest{1}'.format(indent, linesep))
+    out.write('{0}public static void testParse() {{{1}'.format(indent, linesep))
+    out.write('{0}String json = {1};{2}'.format(indent * 2, json_str, linesep))
+    out.write('{0}{1} obj = {2}.parse(json);{3}'.format(indent * 2, cls, cls, linesep))
+    out.write('{0}System.assertNotEquals(null, obj);{1}'.format(indent * 2, linesep))
+    out.write('{0}}}{1}'.format(indent, linesep))
+    out.write('}}{0}'.format(linesep))
+
+
 def main():
     description = """
     This script will generate an Apex class from a JSON input file.
@@ -93,13 +111,16 @@ def main():
                         help='The name of the top level class to generate')
     parser.add_argument('--indent-spaces', type=int, default=3,
                         help='The number of spaces to indent Apex class')
+    parser.add_argument('--generate-test', action='store_true',
+                        help='Generate an Apex test class')
     args = parser.parse_args()
 
-    result = load(args.input_json)
-    process(result, parent=args.class_name)
+    json_dict = load(args.input_json)
+    process(json_dict, parent=args.class_name)
 
-    output_filename = os_path.join(os_path.abspath(args.output_dir), args.class_name + '.apxc')
-    with open(output_filename, 'w') as out:
+    output_filename = '{0}.cls'.format(args.class_name)
+    output_path = os_path.join(os_path.abspath(args.output_dir), output_filename)
+    with open(output_path, 'w') as out:
         write_class_open(out, args.class_name, 0)
         sorted_props = sorted(class_props[args.class_name].items(), key=itemgetter(0))
         write_class_props(out, sorted_props, args.indent_spaces)
@@ -112,6 +133,12 @@ def main():
             write_class_close(out, args.indent_spaces)
         write_parse_method(out, args.class_name, args.indent_spaces)
         write_class_close(out, 0)
+
+    if args.generate_test:
+        output_filename = 'Test{0}.cls'.format(args.class_name)
+        output_path = os_path.join(os_path.abspath(args.output_dir), output_filename)
+        with open(output_path, 'w') as out:
+            write_test_class(out, args.class_name, json_dict, args.indent_spaces)
 
 if __name__ == '__main__':
     main()
