@@ -42,6 +42,8 @@ def apex_type(k, v):
             return 'DateTime'
         except:
             return 'String'
+    elif isinstance(v, bool):
+        return 'Boolean'
     elif isinstance(v, int):
         return 'Integer'
     elif isinstance(v, float):
@@ -64,6 +66,8 @@ def process(obj, parent):
                 class_props[parent][k] = 'DateTime'
             except:
                 class_props[parent][k] = 'String'
+        elif isinstance(v, bool):
+            class_props[parent][k] = 'Boolean'
         elif isinstance(v, int):
             class_props[parent][k] = 'Integer'
         elif isinstance(v, float):
@@ -140,7 +144,6 @@ def main():
     class_defs.append(args.class_name)
     class_props[args.class_name] = {}
     process(json_dict, parent=args.class_name)
-    print(sorted(class_defs))
 
     output_filename = '{0}.cls'.format(args.class_name)
     output_path = os_path.join(os_path.abspath(args.output_dir), output_filename)
