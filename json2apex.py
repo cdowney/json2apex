@@ -3,6 +3,8 @@ from json import load, dumps
 from operator import itemgetter
 from os import access, linesep, makedirs, path as os_path, W_OK
 
+# pip install iso8601
+from iso8601 import parse_date
 
 class_defs = []  # List of generated class names
 class_props = {}  # Map of generated class name to class property name and Apex type
@@ -19,13 +21,27 @@ def writeable_dir(prospective_dir):
         raise Exception('{0} is not a writable dir'.format(prospective_dir))
 
 
-def class_name(k):
-    return 'T' + k.capitalize()
+def create_class_def(k):
+    name = 'T' + k.capitalize()
+    if name in class_defs:
+        i = 2
+        while name + str(i) in class_defs:
+            i += 1
+        name += str(i)
+    class_defs.append(name)
+    class_props[name] = {}
+    return name
 
 
 def apex_type(k, v):
-    if v is None or isinstance(v, str):
+    if v is None:
         return 'String'
+    elif isinstance(v, str):
+        try:
+            parse_date(v)
+            return 'DateTime'
+        except:
+            return 'String'
     elif isinstance(v, int):
         return 'Integer'
     elif isinstance(v, float):
@@ -33,15 +49,21 @@ def apex_type(k, v):
     elif isinstance(v, list):
         return 'List<{0}>'.format(apex_type(k, v[0]))
     elif isinstance(v, dict):
-        return class_name(k)
+        class_name = create_class_def(k)
+        process(v, class_name)
+        return class_name
 
 
 def process(obj, parent):
-    class_defs.append(parent)
-    class_props[parent] = {}
     for k, v in obj.items():
-        if v is None or isinstance(v, str):
+        if v is None:
             class_props[parent][k] = 'String'
+        elif isinstance(v, str):
+            try:
+                parse_date(v)
+                class_props[parent][k] = 'DateTime'
+            except:
+                class_props[parent][k] = 'String'
         elif isinstance(v, int):
             class_props[parent][k] = 'Integer'
         elif isinstance(v, float):
@@ -50,11 +72,10 @@ def process(obj, parent):
             # Assumes list of the type of the first element
             list_type = apex_type(k, v[0])
             class_props[parent][k] = 'List<{0}>'.format(list_type)
-            if list_type == class_name(k):
-                process(v[0], class_name(k))
         elif isinstance(v, dict):
-            class_props[parent][k] = class_name(k)
-            process(v, class_name(k))
+            class_name = create_class_def(k)
+            class_props[parent][k] = class_name
+            process(v, class_name)
 
 
 def write_class_open(out, cls, num_spaces):
@@ -116,7 +137,10 @@ def main():
     args = parser.parse_args()
 
     json_dict = load(args.input_json)
+    class_defs.append(args.class_name)
+    class_props[args.class_name] = {}
     process(json_dict, parent=args.class_name)
+    print(sorted(class_defs))
 
     output_filename = '{0}.cls'.format(args.class_name)
     output_path = os_path.join(os_path.abspath(args.output_dir), output_filename)
