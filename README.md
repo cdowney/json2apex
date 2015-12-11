@@ -23,7 +23,7 @@ optional arguments:
   --generate-test       Generate an Apex test class
 ```
 
-## Example
+## Example 1 - Basic Example
 
 ### JSON input
 ```json
@@ -86,5 +86,148 @@ public class TestExample {
       Example obj = Example.parse(json);
       System.assertNotEquals(null, obj);
    }
+}
+```
+## Example 2 - Google Maps
+
+The following JSON is returned by the Google Maps API. 
+```json
+{
+   "results" : [
+      {
+         "address_components" : [
+            {
+               "long_name" : "277",
+               "short_name" : "277",
+               "types" : [ "street_number" ]
+            },
+            {
+               "long_name" : "Bedford Ave",
+               "short_name" : "Bedford Ave",
+               "types" : [ "route" ]
+            },
+            {
+               "long_name" : "Williamsburg",
+               "short_name" : "Williamsburg",
+               "types" : [ "neighborhood", "political" ]
+            },
+            {
+               "long_name" : "Brooklyn",
+               "short_name" : "Brooklyn",
+               "types" : [ "sublocality_level_1", "sublocality", "political" ]
+            },
+            {
+               "long_name" : "Kings County",
+               "short_name" : "Kings County",
+               "types" : [ "administrative_area_level_2", "political" ]
+            },
+            {
+               "long_name" : "New York",
+               "short_name" : "NY",
+               "types" : [ "administrative_area_level_1", "political" ]
+            },
+            {
+               "long_name" : "United States",
+               "short_name" : "US",
+               "types" : [ "country", "political" ]
+            },
+            {
+               "long_name" : "11211",
+               "short_name" : "11211",
+               "types" : [ "postal_code" ]
+            }
+         ],
+         "formatted_address" : "277 Bedford Ave, Brooklyn, NY 11211, USA",
+         "geometry" : {
+            "location" : {
+               "lat" : 40.714232,
+               "lng" : -73.9612889
+            },
+            "location_type" : "ROOFTOP",
+            "viewport" : {
+               "northeast" : {
+                  "lat" : 40.7155809802915,
+                  "lng" : -73.9599399197085
+               },
+               "southwest" : {
+                  "lat" : 40.7128830197085,
+                  "lng" : -73.96263788029151
+               }
+            }
+         },
+         "partial_match" : true,
+         "place_id" : "ChIJd8BlQ2BZwokRAFUEcm_qrcA",
+         "types" : [ "street_address" ]
+      }
+   ],
+   "status" : "OK"
+}
+```
+
+To easily consume the data in Apex using native data types, use json2apex to generate a parser. First save the JSON to maps.json, then run the generator.
+```
+python json2apex.py --class-name=GMap --generate-test maps.json
+```
+
+The output produced:
+```Apex
+public class GMap {
+   public List<TResults> results;
+   public String status;
+   public class TAddress_components {
+      public String long_name;
+      public String short_name;
+      public List<String> types;
+   }
+   public class TGeometry {
+      public TLocation location;
+      public String location_type;
+      public TViewport viewport;
+   }
+   public class TLocation {
+      public Double lat;
+      public Double lng;
+   }
+   public class TNortheast {
+      public Double lat;
+      public Double lng;
+   }
+   public class TResults {
+      public List<TAddress_components> address_components;
+      public String formatted_address;
+      public TGeometry geometry;
+      public Boolean partial_match;
+      public String place_id;
+      public List<String> types;
+   }
+   public class TSouthwest {
+      public Double lat;
+      public Double lng;
+   }
+   public class TViewport {
+      public TNortheast northeast;
+      public TSouthwest southwest;
+   }
+   public static GMap parse(String json) {
+      return (GMap)System.JSON.deserialize(json, GMap.class);
+   }
+}
+```
+Then to use the generated class:
+
+```Apex
+Http http = new Http();
+HttpRequest request = new HTTPRequest();
+request.setEndpoint(googleMapsApiUrl +'?api_key=' + apiKey + '&location=' + 
+                    EncodingUtil.urlEncode(location, 'utf-8') + '&timestamp=' + EncodingUtil.urlEncode(timestamp, 'utf-8'));
+request.setMethod('GET');
+request.setHeader('Accept', 'application/json');
+
+HttpResponse response = http.send(request);
+if (response.getStatusCode() != 200) {
+  System.debug('Unsuccessfull GET: ' + response.getStatusCode());
+} else {
+  TimeZoneApiResult timeZoneResult = TimeZoneApiResult.parse(response.getBody());
+  GMap gMapResult = GMap.parse(response.getBody());
 }
 ```
