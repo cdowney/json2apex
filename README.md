@@ -224,9 +224,9 @@ request.setMethod('GET');
 request.setHeader('Accept', 'application/json');
 
 HttpResponse response = http.send(request);
-if (response.getStatusCode() != 200) {
-  System.debug('Unsuccessfull GET: ' + response.getStatusCode());
+if (response.getStatusCode() == 200) {
+   GMap gMapResult = GMap.parse(response.getBody());  
 } else {
-  GMap gMapResult = GMap.parse(response.getBody());
+   System.debug('Unsuccessfull GET: ' + response.getStatusCode());
 }
 ```
