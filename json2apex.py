@@ -49,6 +49,7 @@ def apex_type(k, v):
     elif isinstance(v, float):
         return 'Double'
     elif isinstance(v, list):
+        # Assumes list of the type of the first element
         return 'List<{0}>'.format(apex_type(k, v[0]))
     elif isinstance(v, dict):
         class_name = create_class_def(k)
@@ -58,28 +59,7 @@ def apex_type(k, v):
 
 def process(obj, parent):
     for k, v in obj.items():
-        if v is None:
-            class_props[parent][k] = 'String'
-        elif isinstance(v, str):
-            try:
-                parse_date(v)
-                class_props[parent][k] = 'DateTime'
-            except:
-                class_props[parent][k] = 'String'
-        elif isinstance(v, bool):
-            class_props[parent][k] = 'Boolean'
-        elif isinstance(v, int):
-            class_props[parent][k] = 'Integer'
-        elif isinstance(v, float):
-            class_props[parent][k] = 'Double'
-        elif isinstance(v, list):
-            # Assumes list of the type of the first element
-            list_type = apex_type(k, v[0])
-            class_props[parent][k] = 'List<{0}>'.format(list_type)
-        elif isinstance(v, dict):
-            class_name = create_class_def(k)
-            class_props[parent][k] = class_name
-            process(v, class_name)
+        class_props[parent][k] = apex_type(k, v)
 
 
 def write_class_open(out, cls, num_spaces):
