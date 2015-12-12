@@ -227,7 +227,6 @@ HttpResponse response = http.send(request);
 if (response.getStatusCode() != 200) {
   System.debug('Unsuccessfull GET: ' + response.getStatusCode());
 } else {
-  TimeZoneApiResult timeZoneResult = TimeZoneApiResult.parse(response.getBody());
   GMap gMapResult = GMap.parse(response.getBody());
 }
 ```
